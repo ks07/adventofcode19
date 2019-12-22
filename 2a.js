@@ -27,10 +27,9 @@ process.stdin.on('readable', () => {
 
 process.stdin.on('end', () => {
   parseIntoRam('', true);
-  console.log('Read all input');
-  console.dir(ram);
+  console.error('Read all input');
 
-  console.log("\nStarting processing...\n");
+  console.error("\nStarting processing...");
   const cpu = new Intputer();
   cpu.process();
 });
@@ -53,6 +52,10 @@ function opMul(loc) {
   ram[oper3] = vind(oper1) * vind(oper2);
 }
 
+function dumpMemory() {
+  console.log(ram.join(','));
+}
+
 class Intputer {
   #pc = 0;
 
@@ -63,8 +66,8 @@ class Intputer {
 
   process() {
     // 2a specific adjustments
-    ram[1] = 12;
-    ram[2] = 2;
+    //ram[1] = 12;
+    //ram[2] = 2;
 
     while (true) {
       const op = ram[this.#pc];
@@ -81,8 +84,8 @@ class Intputer {
       this.#pc += 4;
     }
 
-    console.log('Halted');
-    console.dir(ram);
+    console.error('Halted');
+    dumpMemory();
   }
 
 }
