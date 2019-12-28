@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Data::Dumper;
+use List::Util qw(sum);
 
 my $wiredefs = [];
 my @wirelocs;
@@ -27,24 +28,34 @@ for (my $i = 0; $i < $maxlen; $i++) {
 
     next unless $wirecmd;
 
-    print "$wireno: $wirecmd\n";
+    #print "$wireno: $wirecmd\n";
 
     parse_wire_cmd($wireno, $wirecmd);
   }
 }
 
 my $min_dist;
+my $min_steps;
 foreach my $loc (@overlaps) {
   my $d = manhattan_dist($loc);
   $min_dist = $d if !$min_dist || $d < $min_dist;
+  my $s = $loc->[2];
+  $min_steps = $s if !$min_steps || $s < $min_steps;
 }
-print "Done, distance: $min_dist\n";
+print "Done, min distance: $min_dist min steps: $min_steps\n";
 
 sub check_for_overlap {
   my $loc = shift;
   my $bucket = $visited->{$loc->[0]}{$loc->[1]};
 
-  push(@overlaps, $loc) if ((keys %$bucket) >= @$wiredefs);
+  if ((keys %$bucket) >= @$wiredefs) {
+    my $total_steps = sum values %$bucket;
+
+    push(@overlaps, [ @$loc, $total_steps ]);
+
+    print "Overlap at " . join(',', @$loc) . " after $total_steps total steps\n";
+    return 1;
+  }
 }
 
 sub move_wire {
@@ -54,11 +65,12 @@ sub move_wire {
 
   my $nx = $wloc->[0] + $vec->[0];
   my $ny = $wloc->[1] + $vec->[1];
+  my $travelled = $wloc->[2] + abs($vec->[0]) + abs($vec->[1]);
 
-  $wirelocs[$wireno] = [$nx, $ny];
+  $wirelocs[$wireno] = [$nx, $ny, $travelled];
 
-  $visited->{$nx}{$ny}{$wireno} = 1;
-  
+  $visited->{$nx}{$ny}{$wireno} = $travelled;
+
   check_for_overlap([$nx, $ny]);
 }
 
@@ -83,7 +95,7 @@ sub parse_wire_cmd {
 
   for (; $l > 0; $l--) {
     move_wire($wireno, \@dvec);
-    print_wire($wireno, $wirelocs[$wireno]);
+    #print_wire($wireno, $wirelocs[$wireno]);
   }
 }
 
