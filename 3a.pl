@@ -25,7 +25,7 @@ for (my $i = 0; $i < $maxlen; $i++) {
     my $w = $wiredefs->[$wireno];
     my $wirecmd = $w->[$i];
 
-    continue unless $wirecmd;
+    next unless $wirecmd;
 
     print "$wireno: $wirecmd\n";
 
