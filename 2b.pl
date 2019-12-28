@@ -60,5 +60,8 @@ for ($noun = 0; $res != $target; $noun++) {
   }
 }
 
+$noun--;
+$verb--;
+
 print "$res: n: $noun, v: $verb\n";
 print 100 * $noun + $verb . "\n";
