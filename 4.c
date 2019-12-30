@@ -63,6 +63,7 @@ bool check_limit(char *pass, char *pass_limit) {
 // Does not check the range.
 bool check_digits(char *pass) {
   bool seen_double = false;
+  int group_counter = 0;
   char prev = '0' - 1;
 
   for (int i = 0; i < PASS_LEN; i++) {
@@ -70,11 +71,19 @@ bool check_digits(char *pass) {
     if (curr < prev) {
       return false;
     }
+
     if (curr == prev) {
-      seen_double = true;
+      group_counter++;
+    } else {
+      // Once we've seen the end of a group, mark if it was a double then reset
+      if (group_counter == 1) {
+        seen_double = true;
+      }
+      group_counter = 0;
     }
     prev = curr;
   }
 
-  return seen_double;
+  // Need to check if the last group was a double
+  return seen_double || group_counter == 1;
 }
