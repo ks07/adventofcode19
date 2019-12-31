@@ -1,6 +1,9 @@
-loadRamFromStream(process.stdin, (ram) => {
+const fs = require('fs');
+
+loadRamFromStream(fs.createReadStream(process.argv[2]), (ram) => {
   console.error("\nStarting processing...");
   const cpu = new Intputer(ram);
+  cpu.dumpMemory();
   cpu.process();
 });
 
