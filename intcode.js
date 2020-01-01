@@ -1,49 +1,3 @@
-const fs = require('fs');
-
-loadRamFromStream(fs.createReadStream(process.argv[2]), (ram) => {
-  console.error("\nStarting processing...");
-  const cpu = new Intputer(ram);
-  cpu.dumpMemory();
-  cpu.process();
-});
-
-function loadRamFromStream(inStream, cb) {
-  const ram = [];
-  let bufferedInput = '';
-
-  inStream.setEncoding('utf8');
-
-
-  function parseIntoRam(newInput, complete = false) {
-      newInput = bufferedInput + newInput;
-      let split = newInput.split(',');
-      complete = complete || newInput.endsWith(',');
-      for (let i = 0; i < (complete ? split.length : split.length - 1); i++) {
-        ram.push(parseInt(split[i]));
-      }
-      if (complete) {
-        bufferedInput = '';
-      } else {
-        bufferedInput = split[split.length - 1];
-      }
-
-  }
-
-  inStream.on('readable', () => {
-    let chunk;
-    while ((chunk = inStream.read()) !== null) {
-      parseIntoRam(chunk);
-    }
-  });
-
-  inStream.on('end', () => {
-    parseIntoRam('', true);
-    console.error('Read all input');
-
-    cb(ram);
-  });
-}
-
 function opAdd(loc) {
   const oper1 = this.ram[loc + 1];
   const oper2 = this.ram[loc + 2];
@@ -79,10 +33,6 @@ class Intputer {
   }
 
   process() {
-    // 2a specific adjustments
-    this.ram[1] = 12;
-    this.ram[2] = 2;
-
     while (true) {
       const op = this.ram[this.#pc];
 
@@ -102,4 +52,43 @@ class Intputer {
     this.dumpMemory();
   }
 
+  static loadRamFromStream(inStream, cb) {
+    const ram = [];
+    let bufferedInput = '';
+
+    inStream.setEncoding('utf8');
+
+
+    function parseIntoRam(newInput, complete = false) {
+        newInput = bufferedInput + newInput;
+        let split = newInput.split(',');
+        complete = complete || newInput.endsWith(',');
+        for (let i = 0; i < (complete ? split.length : split.length - 1); i++) {
+          ram.push(parseInt(split[i]));
+        }
+        if (complete) {
+          bufferedInput = '';
+        } else {
+          bufferedInput = split[split.length - 1];
+        }
+
+    }
+
+    inStream.on('readable', () => {
+      let chunk;
+      while ((chunk = inStream.read()) !== null) {
+        parseIntoRam(chunk);
+      }
+    });
+
+    inStream.on('end', () => {
+      parseIntoRam('', true);
+      console.error('Read all input');
+
+      cb(ram);
+    });
+  }
+
 }
+
+module.exports = Intputer;
