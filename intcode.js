@@ -1,27 +1,91 @@
-function opAdd(loc) {
-  const oper1 = this.ram[loc + 1];
-  const oper2 = this.ram[loc + 2];
-  const oper3 = this.ram[loc + 3];
-  this.ram[oper3] = this.vind(oper1) + this.vind(oper2);
-}
+const { once, EventEmitter } = require('events');
+const readline = require('readline');
 
-function opMul(loc) {
-  const oper1 = this.ram[loc + 1];
-  const oper2 = this.ram[loc + 2];
-  const oper3 = this.ram[loc + 3];
-  this.ram[oper3] = this.vind(oper1) * this.vind(oper2);
-}
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+// Cache lines. Input command can simply listen to the inputEvents' line event
+const inputCache = [];
+const inputEvents = new EventEmitter();
+
+rl.on('line', (line) => {
+  if (inputEvents.listenerCount('input') > 0) {
+    inputEvents.emit('input', line);
+  } else {
+    inputCache.push(line);
+  }
+});
+inputEvents.on('newListener', (evName) => {
+  const line = inputCache.shift();
+  if (line !== undefined) {
+    process.nextTick(() => {
+      inputEvents.emit('input', line);
+    });
+  }
+});
+
+
+const OpAdd = {
+  opcode: 1,
+  oplen: 4,
+  exec: function(loc) {
+    const oper1 = this.ram[loc + 1];
+    const oper2 = this.ram[loc + 2];
+    const oper3 = this.ram[loc + 3];
+    this.ram[oper3] = this.vind(oper1) + this.vind(oper2);
+  },
+};
+
+const OpMul = {
+  opcode: 2,
+  oplen: 4,
+  exec: function(loc) {
+    const oper1 = this.ram[loc + 1];
+    const oper2 = this.ram[loc + 2];
+    const oper3 = this.ram[loc + 3];
+    this.ram[oper3] = this.vind(oper1) * this.vind(oper2);
+  },
+};
+
+const OpInput = {
+  opcode: 3,
+  oplen: 2,
+  exec: async function(loc) {
+    const [val] = await once(inputEvents, 'input');
+    const oper1 = this.ram[loc + 1];
+    this.ram[oper1] = val;
+  },
+};
+
+const OpOutput = {
+  opcode: 4,
+  oplen: 2,
+  exec: function(loc) {
+    const oper1 = this.ram[loc + 1];
+    console.log(this.vind(oper1));
+  },
+};
+
+const ops = [
+  OpAdd,
+  OpMul,
+  OpInput,
+  OpOutput,
+];
 
 class Intputer {
   #pc = 0;
 
-  #opcodes = {
-    1: opAdd,
-    2: opMul,
-  };
+  #opcodes = {};
 
   constructor(ram) {
     this.ram = ram;
+
+    ops.forEach(op => {
+      this.#opcodes[op.opcode] = op;
+    });
   }
 
   dumpMemory() {
@@ -32,7 +96,7 @@ class Intputer {
     return this.ram[i];
   }
 
-  process() {
+  async process() {
     while (true) {
       const op = this.ram[this.#pc];
 
@@ -40,16 +104,17 @@ class Intputer {
         break;
       }
 
-      const opF = this.#opcodes[op];
-      if (!opF) {
+      const opC = this.#opcodes[op];
+      if (!opC) {
         throw new Error(`Unrecognised opcode ${this.#pc}: ${op}`);
       }
-      opF.call(this, this.#pc);
-      this.#pc += 4;
+      await opC.exec.call(this, this.#pc);
+      this.#pc += opC.oplen;
     }
 
     console.error('Halted');
     this.dumpMemory();
+    rl.close();
   }
 
   static loadRamFromStream(inStream, cb) {
