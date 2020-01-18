@@ -30,41 +30,33 @@ inputEvents.on('newListener', (evName) => {
 const OpAdd = {
   opcode: 1,
   oplen: 4,
-  exec: function(loc) {
-    const oper1 = this.ram[loc + 1];
-    const oper2 = this.ram[loc + 2];
-    const oper3 = this.ram[loc + 3];
-    this.ram[oper3] = this.vind(oper1) + this.vind(oper2);
+  exec: function(modes) {
+    this.ram[this.operand(modes, 3, true)] = this.operand(modes, 1) + this.operand(modes, 2);
   },
 };
 
 const OpMul = {
   opcode: 2,
   oplen: 4,
-  exec: function(loc) {
-    const oper1 = this.ram[loc + 1];
-    const oper2 = this.ram[loc + 2];
-    const oper3 = this.ram[loc + 3];
-    this.ram[oper3] = this.vind(oper1) * this.vind(oper2);
+  exec: function(modes) {
+    this.ram[this.operand(modes, 3, true)] = this.operand(modes, 1) * this.operand(modes, 2);
   },
 };
 
 const OpInput = {
   opcode: 3,
   oplen: 2,
-  exec: async function(loc) {
+  exec: async function(modes) {
     const [val] = await once(inputEvents, 'input');
-    const oper1 = this.ram[loc + 1];
-    this.ram[oper1] = val;
+    this.ram[this.operand(modes, 1, true)] = val;
   },
 };
 
 const OpOutput = {
   opcode: 4,
   oplen: 2,
-  exec: function(loc) {
-    const oper1 = this.ram[loc + 1];
-    console.log(this.vind(oper1));
+  exec: function(modes) {
+    console.log(this.operand(modes, 1));
   },
 };
 
@@ -96,11 +88,27 @@ class Intputer {
     return this.ram[i];
   }
 
+  operand(modes, i, write = false) {
+    const val = this.ram[this.#pc + i];
+    // write operands are special cased in the spec, and are described as only
+    // using position mode, although the behaviour actually matches immediate mode
+    switch (write ? '1' : modes.charAt(modes.length - i)) {
+      case '':
+      case '0':
+        return this.vind(val);
+      case '1':
+        return val;
+    }
+    throw new Error(`Invalid operand mode: ${modes}`);
+  }
+
   async process() {
     while (true) {
-      const op = this.ram[this.#pc];
+      const rawOp = this.ram[this.#pc].toString();
 
-      if (op === 99) {
+      const op = rawOp.slice(-2);
+
+      if (op == 99) {
         break;
       }
 
@@ -108,7 +116,10 @@ class Intputer {
       if (!opC) {
         throw new Error(`Unrecognised opcode ${this.#pc}: ${op}`);
       }
-      await opC.exec.call(this, this.#pc);
+
+      const modes = rawOp.slice(0, -2).padStart(opC.oplen - 1, '0');
+
+      await opC.exec.call(this, modes);
       this.#pc += opC.oplen;
     }
 
@@ -157,3 +168,12 @@ class Intputer {
 }
 
 module.exports = Intputer;
+
+if (require.main === module) {
+  const fs = require('fs');
+
+  Intputer.loadRamFromStream(fs.createReadStream(process.argv[2]), (ram) => {
+    const cpu = new Intputer(ram);
+    cpu.process();
+  })
+}
