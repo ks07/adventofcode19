@@ -1,6 +1,12 @@
 const { once, EventEmitter } = require('events');
 const readline = require('readline');
 
+// Just treat all async intcode errors as fatal, as they're indicative of emulation bugs
+process.on('unhandledRejection', (err, promise) => {
+  console.error('Processing failed at:', promise, 'error:', err);
+  process.exit(1);
+});
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
