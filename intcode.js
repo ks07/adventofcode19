@@ -82,7 +82,10 @@ class Intputer {
     this.ram = ram;
 
     ops.forEach(op => {
+      // Make this tolerant to changes in the decoder
       this.#opcodes[op.opcode] = op;
+      this.#opcodes[op.opcode.toString()] = op;
+      this.#opcodes[op.opcode.toString().padStart(2, '0')] = op;
     });
   }
 
