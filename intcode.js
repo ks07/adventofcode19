@@ -68,11 +68,47 @@ const OpOutput = {
   },
 };
 
+const OpCJumpTrue = {
+  opcode: 5,
+  oplen: 3,
+  exec: function(modes) {
+    return this.operand(modes, 1) != 0 ? this.operand(modes, 2) : undefined;
+  },
+};
+
+const OpCJumpFalse = {
+  opcode: 6,
+  oplen: 3,
+  exec: function(modes) {
+    return this.operand(modes, 1) == 0 ? this.operand(modes, 2) : undefined;
+  },
+};
+
+const OpLessThan = {
+  opcode: 7,
+  oplen: 4,
+  exec: function(modes) {
+    this.ram[this.operand(modes, 3, true)] = this.operand(modes, 1) < this.operand(modes, 2) ? 1 : 0;
+  },
+};
+
+const OpEquals = {
+  opcode: 8,
+  oplen: 4,
+  exec: function(modes) {
+    this.ram[this.operand(modes, 3, true)] = this.operand(modes, 1) == this.operand(modes, 2) ? 1 : 0;
+  },
+};
+
 const ops = [
   OpAdd,
   OpMul,
   OpInput,
   OpOutput,
+  OpCJumpTrue,
+  OpCJumpFalse,
+  OpLessThan,
+  OpEquals,
 ];
 
 class Intputer {
@@ -80,8 +116,9 @@ class Intputer {
 
   #opcodes = {};
 
-  constructor(ram) {
+  constructor(ram, opt = {}) {
     this.ram = ram;
+    this.opt = opt;
 
     ops.forEach(op => {
       // Make this tolerant to changes in the decoder
@@ -137,15 +174,25 @@ class Intputer {
 
       const opC = this.#opcodes[op];
       if (!opC) {
+        this.dumpMemory();
         throw new Error(`Unrecognised opcode ${this.#pc}: ${op}`);
       }
 
-      console.log(`${this.#pc}: ${this.ram.slice(this.#pc, this.#pc + opC.oplen).join(' ')}`);
+      if (this.opt.trace) {
+        console.log(`${this.#pc}: ${this.ram.slice(this.#pc, this.#pc + opC.oplen).join(' ')}`);
+      }
+      if (this.opt.dump) {
+        this.dumpMemory();
+      }
 
       const modes = rawOp.slice(0, -2).padStart(opC.oplen - 1, '0');
 
-      await opC.exec.call(this, modes);
-      this.#pc += opC.oplen;
+      const jmp = await opC.exec.call(this, modes);
+      if (jmp === undefined) {
+        this.#pc += opC.oplen;
+      } else {
+        this.#pc = jmp;
+      }
     }
 
     console.error('Halted');
@@ -195,9 +242,12 @@ module.exports = Intputer;
 
 if (require.main === module) {
   const fs = require('fs');
+  const args = require('yargs-parser')(process.argv.slice(2));
 
-  Intputer.loadRamFromStream(fs.createReadStream(process.argv[2]), (ram) => {
-    const cpu = new Intputer(ram);
+  console.dir(args);
+
+  Intputer.loadRamFromStream(fs.createReadStream(args._[0]), (ram) => {
+    const cpu = new Intputer(ram, { trace: !!args.t, dump: !!args.d });
     cpu.process();
   })
 }
