@@ -12,6 +12,7 @@ Intputer.loadRamFromStream(fs.createReadStream('2_input'), async (ram) => {
   const cpu = new Intputer(ram);
   cpu.dumpMemory();
   await cpu.process();
+  cpu.dumpMemory();
 
   // Repurpose 2a as a test to ensure backwards compat
   assert.equal(cpu.ram[0], 3101878, "Intputer no longer calculates the correct 2a solution");

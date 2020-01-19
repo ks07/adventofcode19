@@ -29,6 +29,8 @@ inputEvents.on('newListener', (evName) => {
     process.nextTick(() => {
       inputEvents.emit('input', line);
     });
+  } else {
+    console.log('Input value:');
   }
 });
 
@@ -90,7 +92,9 @@ class Intputer {
   }
 
   dumpMemory() {
-    console.log(this.ram.join(','));
+    for (let i = 0; i < this.ram.length; i += 10) {
+      console.log(`${i}:\t`, this.ram.slice(i, i + 10).join(',\t'));
+    }
   }
 
   vind(i) {
@@ -98,17 +102,27 @@ class Intputer {
   }
 
   operand(modes, i, write = false) {
+    let ret;
     const val = this.ram[this.#pc + i];
     // write operands are special cased in the spec, and are described as only
     // using position mode, although the behaviour actually matches immediate mode
     switch (write ? '1' : modes.charAt(modes.length - i)) {
       case '':
       case '0':
-        return this.vind(val);
+        ret = this.vind(val);
+        break;
       case '1':
-        return val;
+        ret = val;
+        break;
+      default:
+        throw new Error(`Invalid operand mode: ${modes}`);
     }
-    throw new Error(`Invalid operand mode: ${modes}`);
+    // Ensure that values returned are ints
+    const asInt = Number(ret);
+    if (Number.isNaN(asInt)) {
+      throw new Error(`Memory corrupted: ${ret}`);
+    }
+    return asInt;
   }
 
   async process() {
@@ -126,6 +140,8 @@ class Intputer {
         throw new Error(`Unrecognised opcode ${this.#pc}: ${op}`);
       }
 
+      console.log(`${this.#pc}: ${this.ram.slice(this.#pc, this.#pc + opC.oplen).join(' ')}`);
+
       const modes = rawOp.slice(0, -2).padStart(opC.oplen - 1, '0');
 
       await opC.exec.call(this, modes);
@@ -133,7 +149,6 @@ class Intputer {
     }
 
     console.error('Halted');
-    this.dumpMemory();
     rl.close();
   }
 
